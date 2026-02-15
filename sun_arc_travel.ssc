@@ -1,0 +1,196 @@
+// Sun Arc Travel Script for Stellarium Mbbox
+// Requires sun_arc_travel-config.js in the same directory
+
+include("sun_arc_travel-config.js");
+
+// --- Setup ---
+var labelIdLat = -1;
+var labelIdDate = -1;
+var labelIdAlt = -1;
+var savedLocation;
+var savedFov;
+// ArchaeoLines state
+var savedArchaeoLinesState = {};
+
+function setup() {
+    core.output("Stellarium Mbbox: Waiting for initialization...");
+    core.wait(5); // Wait for GUI to fully load
+    core.output("Stellarium Mbbox: Started setup.");
+
+    // Set date if configured and enabled
+    if (TourConfig.enableFixedDate && TourConfig.fixedDate) {
+        core.setDate(TourConfig.fixedDate);
+    }
+
+    // Setup view
+    savedFov = StelMovementMgr.getCurrentFov();
+    StelMovementMgr.zoomTo(180, 1);
+    core.setGuiVisible(true);
+
+    // Setup HUD if enabled
+    core.debug("Stellarium Mbbox: Setup: showHud: " + TourConfig.showHud);
+    if (TourConfig.showHud) {
+        // Position at 20, 100 (safe from top bar, left aligned)
+        labelIdLat = LabelMgr.labelScreen("Latitude: ", 20, 100, true, TourConfig.fontSize, TourConfig.fontColor);
+        labelIdDate = LabelMgr.labelScreen("Date: ", 20, 100 + TourConfig.fontSize + 5, true, TourConfig.fontSize, TourConfig.fontColor);
+        labelIdAlt = LabelMgr.labelScreen("Sun Alt: ", 20, 100 + (TourConfig.fontSize + 5) * 2, true, TourConfig.fontSize, TourConfig.fontColor);
+
+        core.output("Stellarium Mbbox: Labels created. IDs: " + labelIdLat + ", " + labelIdDate + ", " + labelIdAlt);
+    }
+
+    // Setup Trails
+    if (TourConfig.enableTrails) {
+        SolarSystem.setFlagTrails(true);
+    }
+
+    // Setup Solar Arc (ArchaeoLines)
+    if (TourConfig.enableSolarArc) {
+        try {
+            // Note: ArchaeoLines must be loaded in Stellarium plugins settings
+
+            // Save initial state
+            savedArchaeoLinesState.enabled = ArchaeoLines.isEnabled();
+            savedArchaeoLinesState.sun = ArchaeoLines.isCurrentSunDisplayed();
+            savedArchaeoLinesState.equinox = ArchaeoLines.isEquinoxDisplayed();
+            savedArchaeoLinesState.solstices = ArchaeoLines.isSolsticesDisplayed();
+            savedArchaeoLinesState.crossquarters = ArchaeoLines.isCrossquartersDisplayed();
+            savedArchaeoLinesState.majorStandstills = ArchaeoLines.isMajorStandstillsDisplayed();
+            savedArchaeoLinesState.minorStandstills = ArchaeoLines.isMinorStandstillsDisplayed();
+            savedArchaeoLinesState.polarCircles = ArchaeoLines.isPolarCirclesDisplayed();
+            savedArchaeoLinesState.zenith = ArchaeoLines.isZenithPassageDisplayed();
+            savedArchaeoLinesState.nadir = ArchaeoLines.isNadirPassageDisplayed();
+            savedArchaeoLinesState.selected = ArchaeoLines.isSelectedObjectDisplayed();
+            savedArchaeoLinesState.moon = ArchaeoLines.isCurrentMoonDisplayed();
+
+            // Enable the plugin module itself
+            ArchaeoLines.enableArchaeoLines(true);
+
+            // Enable ONLY the Current Sun
+            ArchaeoLines.showCurrentSun(true);
+
+            // Disable everything else to be sure
+            ArchaeoLines.showEquinox(false);
+            ArchaeoLines.showSolstices(false);
+            ArchaeoLines.showCrossquarters(false);
+            ArchaeoLines.showMajorStandstills(false);
+            ArchaeoLines.showMinorStandstills(false);
+            ArchaeoLines.showPolarCircles(false);
+            ArchaeoLines.showZenithPassage(false);
+            ArchaeoLines.showNadirPassage(false);
+            ArchaeoLines.showSelectedObject(false);
+            ArchaeoLines.showCurrentMoon(false);
+        } catch (e) {
+            core.output("Stellarium Mbbox Warning: ArchaeoLines plugin error: " + e);
+        }
+    }
+
+    // Setup location
+    savedLocation = core.getObserverLocationInfo();
+    if (TourConfig.enableLocationChange) {
+        //core.setObserverLocation(0, -90, 0, "South_Pole", "Earth");
+        //core.setObserverLocation(0, 23.5, 0, "Tropic of Cancer", "Earth");   
+    }
+    core.output("Stellarium Mbbox: Completed setup.");
+}
+
+function updateHud(lat) {
+    if (!TourConfig.showHud) return;
+
+    var info = core.getObserverLocationInfo();
+    var date = core.getDate();
+    var sunInfo = core.getObjectInfo("Sun");
+    var alt = sunInfo ? sunInfo.altitude : 0;
+
+    if (labelIdLat != -1) {
+        LabelMgr.setLabelShow(labelIdLat, true);
+        LabelMgr.setLabelText(labelIdLat, "Latitude: " + lat.toFixed(2));
+    }
+
+    if (labelIdDate != -1) {
+        LabelMgr.setLabelShow(labelIdDate, true);
+        LabelMgr.setLabelText(labelIdDate, "Date: " + date.substring(0, 10));
+    }
+
+    if (labelIdAlt != -1) {
+        LabelMgr.setLabelShow(labelIdAlt, true);
+        LabelMgr.setLabelText(labelIdAlt, "Sun Altitude: " + alt.toFixed(2) + "°");
+    }
+}
+
+function cleanup() {
+    core.output("Stellarium Mbbox: Started cleaning up.");
+    // Reset HUD
+    if (TourConfig.showHud) {
+        LabelMgr.deleteAllLabels();
+    }
+
+    // Reset Trails
+    if (TourConfig.enableTrails) {
+        SolarSystem.setFlagTrails(false);
+    }
+
+    // Reset Solar Arc
+    if (TourConfig.enableSolarArc) {
+        try {
+            // Restore previous state
+            ArchaeoLines.showCurrentSun(savedArchaeoLinesState.sun);
+            ArchaeoLines.showEquinox(savedArchaeoLinesState.equinox);
+            ArchaeoLines.showSolstices(savedArchaeoLinesState.solstices);
+            ArchaeoLines.showCrossquarters(savedArchaeoLinesState.crossquarters);
+            ArchaeoLines.showMajorStandstills(savedArchaeoLinesState.majorStandstills);
+            ArchaeoLines.showMinorStandstills(savedArchaeoLinesState.minorStandstills);
+            ArchaeoLines.showPolarCircles(savedArchaeoLinesState.polarCircles);
+            ArchaeoLines.showZenithPassage(savedArchaeoLinesState.zenith);
+            ArchaeoLines.showNadirPassage(savedArchaeoLinesState.nadir);
+            ArchaeoLines.showSelectedObject(savedArchaeoLinesState.selected);
+            ArchaeoLines.showCurrentMoon(savedArchaeoLinesState.moon);
+
+            ArchaeoLines.enableArchaeoLines(savedArchaeoLinesState.enabled);
+        } catch (e) { }
+    }
+
+    // Reset view
+    StelMovementMgr.zoomTo(savedFov);
+
+    // Reset location
+    if (TourConfig.enableLocationChange) core.setObserverLocation(savedLocation.longitude, savedLocation.latitude, savedLocation.altitude, 0, savedLocation.location, savedLocation.planet);
+    core.output("Stellarium Mbbox: Completed cleaning up.");
+}
+
+function runTour() {
+    var step = TourConfig.latStep;
+
+    // Forward Loop
+    core.output("Stellarium Mbbox: Started forward travel.");
+    for (lat = TourConfig.startLat; lat <= TourConfig.endLat; lat += step) {
+        var loc = core.getObserverLocationInfo();
+        core.setObserverLocation(loc.longitude, lat, 0, 0);
+        // core.setObserverLocation(currentLoc.longitude, lat, 0, 0, "Earth");
+        updateHud(lat);
+        core.wait(TourConfig.waitDuration);
+    }
+    core.output("Stellarium Mbbox: Completed forward travel.");
+
+    // Backward Loop
+    if (TourConfig.returnTrip) {
+        core.output("Stellarium Mbbox: Started backward travel.");
+        for (lat = TourConfig.endLat; lat >= TourConfig.startLat; lat -= step) {
+            var loc = core.getObserverLocationInfo();
+            core.setObserverLocation(loc.longitude, lat, 0, 0);
+            // core.setObserverLocation(currentLoc.longitude, lat, 0, 0, "Earth");
+            updateHud(lat);
+            core.wait(TourConfig.waitDuration);
+        }
+        core.output("Stellarium Mbbox: Completed backward travel.");
+    }
+}
+
+// --- Main Execution ---
+try {
+    setup();
+    runTour();
+} catch (e) {
+    core.output("Stellarium Mbbox Error: " + e);
+} finally {
+    cleanup();
+}
