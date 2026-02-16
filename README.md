@@ -1,6 +1,6 @@
 # Stellarium Mbbox
 
-A customizable script for [Stellarium](https://stellarium.org/) that visualizes the Sun's path across different latitudes. Perfect for educational demonstrations or understanding celestial mechanics.
+A customizable script for [Stellarium](https://stellarium.org/) that visualizes the Sun's path across different latitudes. Suitable for better understanding of some specific celestial mechanics.
 
 ## Features
 - **Configurable Tour**: Set start/end latitudes, speed, and date via `sun_arc_travel-config.js`.
